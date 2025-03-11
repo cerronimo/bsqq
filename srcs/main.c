@@ -55,63 +55,114 @@ void print_map(char map[MAX_SIZE][MAX_SIZE], int size) {
 
 // Haritayı dosyadan okuma fonksiyonu
 int read_map_from_file(char *filename, char map[MAX_SIZE][MAX_SIZE]) {
-    int fd, i = 0, j = 0, size;
-    char buffer[MAX_SIZE * MAX_SIZE]; // Dosya içeriğini tutacak buffer
+    int fd;
+    int bytes_read;
+    char buffer[MAX_SIZE * MAX_SIZE] = {0};  // Buffer tamamen sıfırlandı
+    char *ptr;
+    int size, i, j;
 
     fd = open(filename, O_RDONLY);
-    if (fd == -1) {
-        printf("Hata: Dosya açılamadı -> %s\n", filename);
-        return -1;
-    }
+    if (fd == -1) return -1;
 
-    int bytes_read = read(fd, buffer, sizeof(buffer));
-    if (bytes_read <= 0) {
-        printf("Hata: Dosya okunamadı -> %s\n", filename);
-        close(fd);
-        return -1;
-    }
-    buffer[bytes_read] = '\0'; // String sonlandırma
-
+    // Fazladan 1 byte bırakıp sonuna '\0' ekle
+    bytes_read = read(fd, buffer, sizeof(buffer) - 1);
     close(fd);
 
-    // İlk satırdan haritanın boyutunu al
+    if (bytes_read <= 0) return -1;
+    buffer[bytes_read] = '\0';  // Buffer'ı güvenli hale getir
+
     size = atoi(buffer);
+    if (size <= 0 || size > MAX_SIZE) return -1;  // Geçersiz boyut kontrolü
 
-    // İlk satırın sonunu bul ve harita verisine geç
-    char *ptr = buffer;
+    ptr = buffer;
     while (*ptr != '\n' && *ptr != '\0') ptr++;
-    if (*ptr == '\n') ptr++; // Satır sonunu geç
+    if (*ptr == '\n') ptr++;
 
-    // Harita verisini 2D diziye aktar
+    i = 0;
+    j = 0;
     while (*ptr != '\0' && i < size) {
         if (*ptr == '\n') {
-            i++; j = 0; // Yeni satıra geç
+            i++;
+            j = 0;
         } else {
-            map[i][j++] = *ptr;
+            if (*ptr == '.' || *ptr == 'o') {
+                map[i][j] = *ptr;
+                j++;
+            } else {
+                return -1;  // Geçersiz karakter varsa hata ver
+            }
         }
         ptr++;
     }
 
     return size;
 }
+    int read_map_from_stdin(char map[MAX_SIZE][MAX_SIZE]) {
+        char buffer[1024];  // Buffer büyütüldü
+        int size, i, j;
+        char *ptr;
 
-// Ana program
+     // İlk satırı oku (boyut + karakterler)
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL)
+            return -1;
+
+     size = atoi(buffer);
+        if (size <= 0 || size > MAX_SIZE) return -1;
+
+    i = 0;
+    while (i < size) {
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL) // Satır satır oku
+            return -1;
+
+        j = 0;
+        ptr = buffer;
+        while (*ptr != '\n' && j < size) {
+            if (*ptr == '.' || *ptr == 'o') {
+                map[i][j] = *ptr;
+                j++;
+            } else {
+                return -1;  // Geçersiz karakter hatası
+            }
+            ptr++;
+        }
+        i++;
+    }
+
+    return size;
+}
+
+
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        printf("Kullanım: %s maps/grid1.txt\n", argv[0]);
-        return 1;
-    }
-
     char map[MAX_SIZE][MAX_SIZE];
-    int size = read_map_from_file(argv[1], map);
+    int size;
+    int i;
 
-    if (size == -1) {
-        return 1;
+    // Eğer hiç argüman girilmezse, stdin'den harita bekle
+    if (argc == 1) {
+        size = read_map_from_stdin(map);
+        if (size == -1) {
+            write(2, "map error\n", 10);
+            return 1;
+        }
+        find_largest_square_brute(map, size);
+        print_map(map, size);
+        return 0;
     }
 
-    find_largest_square_brute(map, size);
-    printf("\nSonuç:\n");
-    print_map(map, size);
+    // Eğer birden fazla dosya girilmişse, her birini işle
+    i = 1;
+    while (i < argc) {
+        size = read_map_from_file(argv[i], map);
+        if (size == -1) {
+            write(2, "map error\n", 10);
+        } else {
+            find_largest_square_brute(map, size);
+            print_map(map, size);
+        }
+        if (i < argc - 1)
+            write(1, "\n", 1);
+        i++;
+    }
 
     return 0;
 }
