@@ -1,8 +1,7 @@
 CC = cc
 CFLAGS = -Wall -Wextra -Werror
 
-SRCS = srcs/main.c
-
+SRCS = srcs/main.c srcs/findbiq.c srcs/mark_largest_square.c srcs/open_read.c srcs/read_map.c srcs/map_utilist.c
 OBJS = $(SRCS:.c=.o)
 
 NAME = bsq
